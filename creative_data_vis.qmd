@@ -6,12 +6,21 @@ editor: visual
 
 ## Introduction to the Project
 
+During the summer of 2023, I composed my master's thesis on the distribution of shell artifact types across context and stylistic form during the Early Agricultural Period (2100BCE - 50CE). I was specifically looking at the difference in distribution between shells with a nacreous (iridescent) layer and those without in the Tucson Basin of Arizona. These nacreous shells make up only 3 of the available taxa but nacreous shells compose nearly half of all artifacts recovered.
+
+Most of my thesis work focused on how nacreous and non-nacreous shells were distributed at individual sites in specific contexts and stylistic forms. Something I did towards the end of my original work that only provided supplemental data reconfirming my general assumptions was running a chi-square test of normality on the entire distribution.
+
+For this project, I want to use the outcome of this test (for the Cienega phase specifically) to produce two "maps" displaying an abstracted version of the Tucson Basin. Each grid cell will represent one square mile shaded to show the above-expected presence of nacreous `GREEN` or non-nacreous `BLUE` in a nearby site. The idea with this is to represent how either trend **occupies space** and **influences the surrounding areas.** Color displays the strength of the p-value dispersed over space. I also just very much enjoy abstract spatial visuals
+
 ## Running the Code
+
+### Loading the data
+
+To run this test, we'll need the following packages - `:readxl: :ggplot2: :tidyverse: :corrplot: :chisq.posthoc.test: :ggcorrplot:`
 
 ```{r}
 #load the required libraries
 library(readxl)
-library(dplyr)
 library(ggplot2)
 library(tidyverse)
 library(corrplot)
@@ -19,13 +28,23 @@ library(chisq.posthoc.test)
 library(ggcorrplot)
 #getting the data from the adjusted database
 data <- read_excel("data/cienega_sites.xlsx", guess_max = 10000)
+summary(data)
 ```
+
+The data shows all of the sites from Southern Arizona during the EAP, we'll need to subset to include just sites within the Tucson Basin and the Cienega phase.
+
+### Chi-Square Test
 
 ```{r}
 dfSites <- data.frame(NACRE=data$NACRE,NO_NACRE=data$"NON-NACRE")
 dfSites <- na.omit(dfSites)
 dfSites <- dfSites[-c(1,2,3,4,6,7,8,12,13),] #getting rid of the san pedro sites
 summary(dfSites)
+```
+
+After subsetting the data, we're left with 9 sites with an average count of **33.56** nacreous items per site and **98.56** non-nacreous per site.
+
+```{r}
 #running the test
 chisqSites <- chisq.test(dfSites, correct = F)
 chisqSites
@@ -33,34 +52,66 @@ chisqSites
 #this allows us to reject our null hypothesis
 ```
 
+The results show a p-value of `<2.2e-16`. As was iterated in my thesis, this is extremely significant and indicates that nacreous and non-nacreous shells were not deposited equally across the Tuscon Basin. Further examinations
+
 ```{r}
 chisqSites$observed
 round(chisqSites$expected,2)
 round(chisqSites$residuals, 2)
 chisq.posthoc.test(dfSites, method = "bonferroni")
-#statistically revelant sites
-##Clearwater (0.0000000)
-##Coffee Camp (0.0000000)
+#statistically relevant sites
 ##Los Pozos (0.0000000)
-##Santa Cruz Bend (0.0000000)
-##Stone Pipe (0.003663)
+##Valley Farms (0.00124)
 ##Wetlands (0.0000000)
-```
 
-```{r}
 #visualizing residuals
 corrplot(chisqSites$residuals,is.cor = FALSE)
-#which forms favor which shell type
-##Clearwater favors NO_NACRE (-4.32/4.95)
-##Coffee Camp favors NACRE (17.02/-19.51)
-##Los Pozos favors NO_NACRE (-14.10/16.16
-##Santa Cruz Bend favors NO_NACRE (-14.10/16.16)
-##Stone Pipe favors NO_NACRE (-2.54/2.91)
-##Wetlands favors NACRE (4.87/-5.58)
+#which sites favor which shell type
+##Los Pozos favors NO_NACRE (-3.82/2.23)
+##Valley Farms NACRE (3.42/-1.99)
+##Wetlands favors NACRE (12.56/-7.33)
 ```
 
-## The Map
+Visualizing the residuals shows that **Los Pozos (**p-value = 0.000), **Valley Farms** (p-value = 0.00124), and **Wetlands** (p-value = 0.000) are the sites with non-normally distributed data. Valley Farms and Wetlands are both have more nacreous shell artifacts than was expected by the test; whereas Los Pozos has more non-nacreous shells.
 
-![Results from the test excluding data outside of the Tucson Bain](images/cdv.1.png)
+### Second Chi-Square Test
+
+After looking at the first test, I noticed that focusing solely on sites in the Tucson Basin for the chi-square test had warped the data slightly. Since the Tucson Basin had significantly more non-nacreous shells than the entire Cienega phase's assemblage, sites that otherwise displayed significant p-values were within the expected parameters.
+
+To rectify this, and develop another graph, I ran the same process but only excluding sites from the earlier San Pedro phase.
+
+```{r}
+dfSites2 <- data.frame(NACRE=data$NACRE,NO_NACRE=data$"NON-NACRE")
+dfSites2 <- na.omit(dfSites2)
+dfSites2 <- dfSites2[-c(1,2,3,4),] #getting rid of JUST the san pedro sites
+(chisqSites2 <- chisq.test(dfSites2, correct = F))
+round(chisqSites2$residuals, 2)
+chisq.posthoc.test(dfSites2, method = "bonferroni")
+#statistically relevant sites in the TB
+##Clearwater (0.000000)
+##Los Pozos (0.0000000)
+##Santa Cruz Bend (0.000000)
+##Stone Pipe(0.0023)
+##Wetlands (0.0000000)
+corrplot(chisqSites2$residuals,is.cor = FALSE)
+#which sites favor which shell type
+##Clearwater favors NO NACRE (-4.37/5.05)
+##Los Pozos favors NO NACRE (-14.21/16.43)
+##Santa Cruz Bend favors NO NACRE (-6.62/7.65)
+##Stone Pipe favors NO NACRE (-2.56/2.96)
+##Wetlands favors NACRE(4.80/-5.55)
+```
+
+By adding in sites like **Coffee Camp** to the test - even if it's outside of the basin itself - the amount of nacreous shell in the general population increased. This made sites with high contents of non-nacreous shell artifacts more noticeably unusual and less well-explained by random chance. In total, this means the sites of **Clearwater, Santa Cruz Bend,** and **Stone Pipe** gain sufficient evidence to reject the null hypothesis. All of which had more **non-nacreous** shell artifacts than expected.
+
+## The Maps
+
+This graph depicts the Tucson Basin as abstract square mile blocks. Sites are color-coded to depict if they had more nacreous or non-nacreous artifacts than expected. Additional cells are shaded to represent the trends that nearby sites follow. A non-site cell of pure green is within close proximity to one or multiple nacreous biased sites. A non-site cell will usually be some gradient of blue, green and white to represent contrasting influences between multiple communities (or in the case of white, a lack of influence).
+
+By presenting the Tucson Basin as a gradient rather than just discrete sites, this shows the true geographic extent of a particular shell's prevalence in the assemblage.
+
+![Results from the test excluding data outside of the Tucson Basin](images/cdv.1.png)
 
 ![Results from the test including data from outside of the Tucson Basin](images/cdv.2.png)
+
+Comparing the two graphs demonstrates the difference between sites that are normally distributed for the Tucson Basin vs. those sites that are normally distributed for the entire Cienega phase. Santa Cruz Bend, Stone Pipe, and Clearwater are all normal in the context of the Tucson Basin but have non-normal distributions of non-nacreous shells in the context of the entire phase. Conversely, Valley Farms has more nacreous shells than would be explained by random chance in the context of the Tucson Basin but its distribution is explained by looking at the broader phase assemblage.
